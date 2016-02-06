@@ -61,8 +61,6 @@ function getFileInfo() {
 	filename=$1
 	ownerName=$(stat -c "%U" ${filename})
 	ownerGroup=$(stat -c "%G" ${filename})
-	echo $ownerName
-	echo $ownerGroup
 }
 
 function compressFactory() {
