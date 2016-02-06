@@ -1,0 +1,133 @@
+#!/bin/bash
+
+#
+# The code of script goes from the bottom to top
+#
+
+#
+# Global vars
+#
+rootPath=''
+ownerName=''
+ownerGroup=''
+logfile='imgpress.log'
+
+
+
+function logEnd() {
+	log "####### Finished Compressing - $(date) ######"
+}
+
+function logStart() {
+	log " "
+	log "####### Start Compressing ######"
+	log "================================"
+	log " Date: $(date)"
+	log " rootPath: $rootPath"
+	log "================================"
+}
+
+function log() {
+	echo $1 >> "$rootPath/$logfile"
+}
+
+
+#
+# Check if previous command executed successfully
+#
+function isOk() {
+	if [ $? = 0 ]; then
+        log " - compress: Done. $1"
+	else
+        log " - compress: Fail. $1"
+	fi
+}
+
+function recoverFileOwnership() {
+	chown $ownerName:$ownerGroup $1
+}
+
+function compressPng() {
+    optipng -o3 -strip all $1
+    isOk $1
+}
+
+function compressJpg() {
+	jpegoptim -m75 $1
+	isOk $1
+}
+
+function getFileInfo() {
+	filename=$1
+	ownerName=$(stat -c "%U" ${filename})
+	ownerGroup=$(stat -c "%G" ${filename})
+	echo $ownerName
+	echo $ownerGroup
+}
+
+function compressFactory() {
+	filename=$(basename ${file})
+
+	getFileInfo $file
+
+	# get extension of file
+	extension=${filename##*.}
+
+	# conv extension to lower case
+	extension=$(echo $extension | tr '[:upper:]' '[:lower:]')
+
+	case "$extension" in
+		png)
+			# echo "is png"
+			compressPng $file
+			;;
+		jpg)
+			compressJpg $file
+			;;
+		jpeg)
+			compressJpg $file
+			;;
+	esac
+	recoverFileOwnership $file
+}
+
+#
+# recursively travel a dir of n levels
+#
+function traverse() {
+for file in "$1"/*
+do
+    if [ ! -d "${file}" ] ; then
+        compressFactory ${file}
+    else
+        echo "entering recursion with: ${file}"
+        traverse "${file}"
+    fi
+done
+}
+
+function start() {
+	# write log header
+	logStart
+
+	# start compressing
+    traverse $1
+    logEnd
+}
+
+function checkParams() {
+	if [ -z "$1" ] 
+	then
+		echo "imgpress: missing rootPath"
+		echo "Try 'imgpress /path/to/project'"
+	else
+		rootPath=$1
+		start $rootPath
+	fi
+}
+
+function main() {
+	checkParams $1
+}
+
+main $1
